@@ -1,0 +1,154 @@
+<link rel="import" href="../polymer/polymer-element.html">
+
+<dom-module id="battery-status">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+  </template>
+
+  <script>
+    /**
+     * `battery-status`
+     * Polymer element helper to adapt behaviour regarding the device battery status
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class BatteryStatus extends Polymer.Element {
+      static get is() { return 'battery-status'; }
+      static get properties() {
+        return {
+          battery: {
+            type: Object,
+            value: () => {
+              return {};
+            }
+          },
+          status: {
+            type: Object,
+            value: () => {
+              return {};
+            },
+            notify: true
+          },
+          /**
+           * Battery level warning threshold
+           * default: 50%
+           */
+          threshold: {
+            type: String,
+            value: "50" 
+          }
+        };
+      }
+      static get observers() {
+        return [
+          '_statusChanged(status.*)'
+        ]
+      }
+      ready() {
+        super.ready();
+        if ('getBattery' in navigator) {
+          navigator.getBattery().then((battery) => {
+            this.set('battery', battery);
+            const updateAllBatteryInfo = () => {
+              this._updateChargeInfo();
+              this._updateLevelInfo();
+              this._updateChargingInfo();
+              this._updateDischargingInfo();
+            }
+            updateAllBatteryInfo();
+            // Set event listeners
+            battery.addEventListener('chargingchange', () => {
+              this._updateChargeInfo();
+            });
+            battery.addEventListener('levelchange', () => {
+              this._updateLevelInfo();
+            });
+            battery.addEventListener('chargingtimechange', () => {
+              this._updateChargingInfo();
+            });
+            battery.addEventListener('dischargingtimechange', () => {
+              this._updateDischargingInfo();
+            });
+          }).catch((err) => {
+            // console.error(err);
+          });
+        } else {
+          console.log("Your browser doesn't support battery status API :'( !");
+        }
+      }
+      _statusChanged(status) {}
+      /**
+       * updateChargeInfo
+       * @return {[type]} [description]
+       */
+      _updateChargeInfo() {
+        // console.log("Battery charging :", this.battery.charging);
+        this.set(['status', 'charging'], this.battery.charging);
+      }
+      /**
+       * updateLevelInfo
+       * @return {[type]} [description]
+       */
+      _updateLevelInfo() {
+        // console.log("Battery level :", this.battery.level * 100, "%");
+        this.set(['status', 'level'], this.battery.level * 100);
+        if (this.status.level > this.threshold) {
+          this.fire('over-threshold', this.status);
+        } else {
+          this.fire('under-threshold', this.status);
+        }
+      }
+      /**
+       * updateChargingInfo
+       * @return {[type]} [description]
+       */
+      _updateChargingInfo() {
+        // console.log("Battery full in :", this.battery.chargingTime, "sec");
+        this.set(['status', 'chargingTime'], this.battery.chargingTime);
+      }
+      /**
+       * updateDischargingInfo
+       * @return {[type]} [description]
+       */
+      _updateDischargingInfo() {
+        // console.log("Battery out in :", this.battery.dischargingTime, "sec");
+        this.set(['status', 'dischargingTime'], this.battery.dischargingTime);
+      }
+
+      /**
+       * Dispatches a custom event with an optional detail value.
+       *
+       * @param {string} type Name of event type.
+       * @param {*=} detail Detail value containing event-specific
+       *   payload.
+       * @param {{ bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined) }=}
+       *  options Object specifying options.  These may include:
+       *  `bubbles` (boolean, defaults to `true`),
+       *  `cancelable` (boolean, defaults to false), and
+       *  `node` on which to fire the event (HTMLElement, defaults to `this`).
+       * @return {Event} The new event that was fired.
+       */
+      fire(type, detail, options) {
+        options = options || {};
+        detail = (detail === null || detail === undefined) ? {} : detail;
+        let event = new Event(type, {
+          bubbles: options.bubbles === undefined ? true : options.bubbles,
+          cancelable: Boolean(options.cancelable),
+          composed: options.composed === undefined ? true: options.composed
+        });
+        event.detail = detail;
+        let node = options.node || this;
+        node.dispatchEvent(event)
+        return event;
+      }
+    }
+
+    window.customElements.define(BatteryStatus.is, BatteryStatus);
+  </script>
+</dom-module>
